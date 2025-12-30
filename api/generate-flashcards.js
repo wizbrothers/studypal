@@ -10,15 +10,15 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Notes are required' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
 
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured' });
   }
 
   try {
-    const prompt = `You are a study assistant helping students create flashcards. 
-    
+    const prompt = `You are a study assistant helping students create flashcards.
+
 Given the following study notes about ${subject || 'a topic'}, create 5-10 flashcards.
 
 Each flashcard should have:
@@ -34,38 +34,36 @@ Return ONLY a JSON array in this exact format, with no other text:
 Study notes:
 ${notes}`;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048,
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-3-haiku-20240307',
+        max_tokens: 2048,
+        messages: [
+          {
+            role: 'user',
+            content: prompt
           }
-        }),
-      }
-    );
+        ]
+      }),
+    });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('Gemini API error:', errorData);
+      console.error('Claude API error:', errorData);
       return res.status(500).json({ error: 'AI service error' });
     }
 
     const data = await response.json();
-    
-    // Extract the text from Gemini's response
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
+
+    // Extract the text from Claude's response
+    const text = data.content?.[0]?.text;
+
     if (!text) {
       return res.status(500).json({ error: 'No response from AI' });
     }
@@ -73,7 +71,7 @@ ${notes}`;
     // Parse the JSON from the response
     // Remove markdown code blocks if present
     let cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    
+
     try {
       const flashcards = JSON.parse(cleanedText);
       return res.status(200).json({ flashcards });
