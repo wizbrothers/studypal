@@ -16,18 +16,31 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'API key not configured' });
   }
 
-  // Determine card range based on user selection
-  let cardRange = '5-15';
-  if (cardCount === '20-30') {
-    cardRange = '20-30';
-  } else if (cardCount === '30-50') {
-    cardRange = '30-50';
+  // Determine card count based on user selection or content length
+  let cardInstruction = '';
+  if (cardCount === 'auto' || !cardCount) {
+    // Dynamic: estimate based on content length
+    const wordCount = notes.split(/\s+/).length;
+    if (wordCount < 100) {
+      cardInstruction = 'create 3-5 flashcards';
+    } else if (wordCount < 300) {
+      cardInstruction = 'create 5-10 flashcards';
+    } else if (wordCount < 600) {
+      cardInstruction = 'create 10-15 flashcards';
+    } else if (wordCount < 1000) {
+      cardInstruction = 'create 15-25 flashcards';
+    } else {
+      cardInstruction = 'create 25-40 flashcards';
+    }
+  } else {
+    // User specified exact number
+    cardInstruction = `create exactly ${cardCount} flashcards`;
   }
 
   try {
     const prompt = `You are a study assistant helping students create flashcards.
 
-Given the following study notes about ${subject || 'a topic'}, create ${cardRange} flashcards.
+Given the following study notes about ${subject || 'a topic'}, ${cardInstruction}.
 
 Each flashcard should have:
 - A clear question or term on the front
