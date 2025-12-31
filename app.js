@@ -726,56 +726,662 @@ function copySummary() {
   });
 }
 
-// ==================== AI TUTOR ====================
-async function askTutor() {
-  const input = document.getElementById('tutor-input').value.trim();
-  const output = document.getElementById('tutor-output');
-  const errorDiv = document.getElementById('tutor-error');
-  const btn = document.getElementById('tutor-btn');
-  const subjectSelect = document.getElementById('tutor-subject');
-  const subject = subjectSelect ? subjectSelect.value : 'general';
-  
-  if (!input) {
-    errorDiv.textContent = 'Please enter a question';
-    errorDiv.classList.remove('hidden');
-    return;
+// ==================== AI TUTOR (CONVERSATIONAL) ====================
+let currentTutorSession = null;
+let tutorSessions = [];
+
+function loadTutorSessions() {
+  const userKey = currentUser ? `studypal_tutor_${currentUser.email}` : 'studypal_tutor_guest';
+  tutorSessions = loadFromStorage(userKey) || [];
+}
+
+function saveTutorSessions() {
+  const userKey = currentUser ? `studypal_tutor_${currentUser.email}` : 'studypal_tutor_guest';
+  saveToStorage(userKey, tutorSessions);
+}
+
+function startNewTutorSession() {
+  currentTutorSession = {
+    id: 'session_' + Date.now(),
+    title: 'Untitled Session',
+    subject: 'general',
+    createdAt: new Date().toISOString(),
+    messages: [],
+    quizResults: []
+  };
+
+  // Reset UI
+  document.getElementById('tutor-session-title').value = '';
+  document.getElementById('tutor-subject').value = 'general';
+  document.getElementById('tutor-input').value = '';
+  document.getElementById('test-me-btn').classList.add('hidden');
+  document.getElementById('test-me-btn').classList.remove('flex');
+
+  // Reset messages to welcome
+  const messagesContainer = document.getElementById('tutor-messages');
+  messagesContainer.innerHTML = `
+    <div class="flex gap-3">
+      <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+        </svg>
+      </div>
+      <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100 rounded-2xl rounded-tl-none p-4 max-w-[85%]">
+        <p class="text-gray-800">Hi! I'm your AI tutor. Ask me anything about your studies and I'll help explain it in a way that's easy to understand. What would you like to learn about today?</p>
+      </div>
+    </div>
+  `;
+}
+
+function loadTutorSession(sessionId) {
+  loadTutorSessions();
+  const session = tutorSessions.find(s => s.id === sessionId);
+  if (!session) return;
+
+  currentTutorSession = session;
+
+  // Update UI
+  document.getElementById('tutor-session-title').value = session.title || '';
+  document.getElementById('tutor-subject').value = session.subject || 'general';
+
+  // Render messages
+  renderTutorMessages();
+
+  // Show Test Me button if there are messages
+  if (session.messages.length > 0) {
+    document.getElementById('test-me-btn').classList.remove('hidden');
+    document.getElementById('test-me-btn').classList.add('flex');
   }
-  
-  btn.disabled = true;
-  btn.innerHTML = '<span>🤖 AI is thinking...</span>';
+
+  showPage('tutor');
+}
+
+function renderTutorMessages() {
+  const messagesContainer = document.getElementById('tutor-messages');
+
+  // Start with welcome message
+  let html = `
+    <div class="flex gap-3">
+      <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+        </svg>
+      </div>
+      <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100 rounded-2xl rounded-tl-none p-4 max-w-[85%]">
+        <p class="text-gray-800">Hi! I'm your AI tutor. Ask me anything about your studies and I'll help explain it in a way that's easy to understand. What would you like to learn about today?</p>
+      </div>
+    </div>
+  `;
+
+  // Add conversation messages
+  if (currentTutorSession && currentTutorSession.messages) {
+    currentTutorSession.messages.forEach(msg => {
+      if (msg.role === 'user') {
+        html += `
+          <div class="flex gap-3 justify-end">
+            <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-tr-none p-4 max-w-[85%]">
+              <p class="whitespace-pre-wrap">${escapeHtml(msg.content)}</p>
+            </div>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="flex gap-3">
+            <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100 rounded-2xl rounded-tl-none p-4 max-w-[85%]">
+              <p class="text-gray-800 whitespace-pre-wrap">${escapeHtml(msg.content)}</p>
+            </div>
+          </div>
+        `;
+      }
+    });
+  }
+
+  messagesContainer.innerHTML = html;
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function updateSessionTitle(title) {
+  if (currentTutorSession) {
+    currentTutorSession.title = title;
+    saveCurrentSession();
+  }
+}
+
+function updateSessionSubject(subject) {
+  if (currentTutorSession) {
+    currentTutorSession.subject = subject;
+    saveCurrentSession();
+  }
+}
+
+function saveCurrentSession() {
+  if (!currentTutorSession) return;
+
+  loadTutorSessions();
+  const existingIndex = tutorSessions.findIndex(s => s.id === currentTutorSession.id);
+
+  if (existingIndex >= 0) {
+    tutorSessions[existingIndex] = currentTutorSession;
+  } else {
+    tutorSessions.unshift(currentTutorSession);
+  }
+
+  saveTutorSessions();
+}
+
+function handleTutorKeydown(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendTutorMessage();
+  }
+}
+
+async function sendTutorMessage() {
+  const input = document.getElementById('tutor-input');
+  const message = input.value.trim();
+  const errorDiv = document.getElementById('tutor-error');
+  const sendBtn = document.getElementById('tutor-send-btn');
+  const messagesContainer = document.getElementById('tutor-messages');
+
+  if (!message) return;
+
+  // Initialize session if needed
+  if (!currentTutorSession) {
+    startNewTutorSession();
+  }
+
+  // Auto-generate title from first message
+  if (currentTutorSession.messages.length === 0 && !currentTutorSession.title) {
+    const autoTitle = message.substring(0, 50) + (message.length > 50 ? '...' : '');
+    currentTutorSession.title = autoTitle;
+    document.getElementById('tutor-session-title').value = autoTitle;
+  }
+
+  // Add user message to UI
+  messagesContainer.innerHTML += `
+    <div class="flex gap-3 justify-end">
+      <div class="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-tr-none p-4 max-w-[85%]">
+        <p class="whitespace-pre-wrap">${escapeHtml(message)}</p>
+      </div>
+    </div>
+  `;
+
+  // Add user message to session
+  currentTutorSession.messages.push({ role: 'user', content: message });
+
+  // Clear input and disable
+  input.value = '';
+  sendBtn.disabled = true;
   errorDiv.classList.add('hidden');
-  
+
+  // Add typing indicator
+  const typingId = 'typing-' + Date.now();
+  messagesContainer.innerHTML += `
+    <div id="${typingId}" class="flex gap-3">
+      <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+        </svg>
+      </div>
+      <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100 rounded-2xl rounded-tl-none p-4">
+        <div class="flex gap-1">
+          <span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 0ms;"></span>
+          <span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 150ms;"></span>
+          <span class="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style="animation-delay: 300ms;"></span>
+        </div>
+      </div>
+    </div>
+  `;
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
   try {
-    const response = await fetch('/api/explain', {
+    const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: input, subject })
+      body: JSON.stringify({
+        messages: currentTutorSession.messages,
+        subject: currentTutorSession.subject
+      })
     });
-    
+
+    // Remove typing indicator
+    document.getElementById(typingId)?.remove();
+
     if (!response.ok) {
-      throw new Error('Failed to get explanation');
+      throw new Error('Failed to get response');
     }
-    
+
     const data = await response.json();
-    
-    output.innerHTML = `
-      <div class="bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-6">
-        <div class="prose prose-sm max-w-none text-gray-800 whitespace-pre-wrap">${escapeHtml(data.explanation)}</div>
+
+    // Add AI response to session
+    currentTutorSession.messages.push({ role: 'assistant', content: data.reply });
+
+    // Add AI response to UI
+    messagesContainer.innerHTML += `
+      <div class="flex gap-3">
+        <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+          </svg>
+        </div>
+        <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100 rounded-2xl rounded-tl-none p-4 max-w-[85%]">
+          <p class="text-gray-800 whitespace-pre-wrap">${escapeHtml(data.reply)}</p>
+        </div>
       </div>
     `;
+
+    // Show Test Me button after first exchange
+    document.getElementById('test-me-btn').classList.remove('hidden');
+    document.getElementById('test-me-btn').classList.add('flex');
+
+    // Save session
+    saveCurrentSession();
+
   } catch (error) {
-    console.error('AI tutor failed:', error);
-    errorDiv.textContent = 'Failed to get explanation. Please try again.';
+    console.error('Chat error:', error);
+    document.getElementById(typingId)?.remove();
+    errorDiv.textContent = 'Failed to get response. Please try again.';
     errorDiv.classList.remove('hidden');
+
+    // Remove the failed user message from session
+    currentTutorSession.messages.pop();
   }
-  
-  btn.disabled = false;
-  btn.innerHTML = `
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-    </svg>
-    <span>Explain This</span>
-  `;
+
+  sendBtn.disabled = false;
+  messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function showTutorSessions() {
+  loadTutorSessions();
+  renderTutorSessionsList();
+  showPage('tutor-sessions');
+}
+
+function renderTutorSessionsList() {
+  const emptyState = document.getElementById('tutor-sessions-empty');
+  const grid = document.getElementById('tutor-sessions-grid');
+
+  if (tutorSessions.length === 0) {
+    emptyState.classList.remove('hidden');
+    grid.classList.add('hidden');
+    return;
+  }
+
+  emptyState.classList.add('hidden');
+  grid.classList.remove('hidden');
+
+  grid.innerHTML = tutorSessions.map(session => {
+    const date = new Date(session.createdAt).toLocaleDateString();
+    const messageCount = session.messages.length;
+    const quizCount = session.quizResults ? session.quizResults.length : 0;
+    const lastQuizScore = quizCount > 0 ? session.quizResults[session.quizResults.length - 1] : null;
+
+    return `
+      <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex-1">
+            <h4 class="font-semibold text-gray-800 mb-1">${escapeHtml(session.title || 'Untitled Session')}</h4>
+            <div class="flex items-center gap-2 text-sm text-gray-500">
+              <span class="px-2 py-0.5 bg-purple-100 text-purple-700 rounded">${session.subject || 'General'}</span>
+              <span>${date}</span>
+            </div>
+          </div>
+          <button
+            onclick="deleteTutorSession('${session.id}')"
+            class="text-gray-400 hover:text-red-500 transition-colors p-1"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="text-sm text-gray-600 mb-4">
+          <span>${messageCount} messages</span>
+          ${quizCount > 0 ? `<span class="ml-3">📝 ${quizCount} quiz${quizCount > 1 ? 'zes' : ''}</span>` : ''}
+          ${lastQuizScore ? `<span class="ml-2 text-green-600">(Last: ${lastQuizScore.score}/${lastQuizScore.total})</span>` : ''}
+        </div>
+        <div class="flex gap-2">
+          <button
+            onclick="loadTutorSession('${session.id}')"
+            class="flex-1 bg-purple-500 text-white py-2 rounded-lg hover:bg-purple-600 transition-colors text-sm font-medium"
+          >
+            Continue
+          </button>
+          ${quizCount > 0 ? `
+            <button
+              onclick="retakeTutorQuiz('${session.id}')"
+              class="px-4 py-2 bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors text-sm font-medium"
+            >
+              Retake Quiz
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function deleteTutorSession(sessionId) {
+  if (!confirm('Delete this session? This cannot be undone.')) return;
+
+  loadTutorSessions();
+  tutorSessions = tutorSessions.filter(s => s.id !== sessionId);
+  saveTutorSessions();
+
+  if (currentTutorSession && currentTutorSession.id === sessionId) {
+    startNewTutorSession();
+  }
+
+  renderTutorSessionsList();
+}
+
+// ==================== TEST ME (QUIZ) ====================
+let currentQuiz = {
+  questions: [],
+  currentIndex: 0,
+  score: 0,
+  answers: [],
+  sessionId: null
+};
+
+async function openTestMe() {
+  if (!currentTutorSession || currentTutorSession.messages.length === 0) {
+    alert('Please have a conversation first before taking a quiz!');
+    return;
+  }
+
+  currentQuiz = {
+    questions: [],
+    currentIndex: 0,
+    score: 0,
+    answers: [],
+    sessionId: currentTutorSession.id
+  };
+
+  showPage('test-me');
+
+  // Show loading, hide others
+  document.getElementById('test-loading').classList.remove('hidden');
+  document.getElementById('test-question-card').classList.add('hidden');
+  document.getElementById('test-complete').classList.add('hidden');
+
+  try {
+    const response = await fetch('/api/generate-quiz', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: currentTutorSession.messages,
+        subject: currentTutorSession.subject
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate quiz');
+    }
+
+    const data = await response.json();
+
+    if (!data.questions || data.questions.length === 0) {
+      throw new Error('No questions generated');
+    }
+
+    currentQuiz.questions = data.questions;
+    document.getElementById('test-loading').classList.add('hidden');
+    showTestQuestion();
+
+  } catch (error) {
+    console.error('Failed to generate quiz:', error);
+    document.getElementById('test-loading').innerHTML = `
+      <div class="text-red-500 mb-4">
+        <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </div>
+      <p class="text-gray-600 mb-4">Failed to generate quiz. Please try again.</p>
+      <button onclick="exitTestMe()" class="px-6 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+        Go Back
+      </button>
+    `;
+  }
+}
+
+function showTestQuestion() {
+  const question = currentQuiz.questions[currentQuiz.currentIndex];
+  if (!question) return;
+
+  // Update progress
+  const total = currentQuiz.questions.length;
+  const current = currentQuiz.currentIndex + 1;
+  document.getElementById('test-progress').textContent = `Question ${current} of ${total}`;
+  document.getElementById('test-score').textContent = `Score: ${currentQuiz.score} / ${currentQuiz.currentIndex}`;
+  document.getElementById('test-progress-bar').style.width = `${(currentQuiz.currentIndex / total) * 100}%`;
+
+  // Set question type label
+  const typeLabels = {
+    'multiple_choice': 'Multiple Choice',
+    'fill_blank': 'Fill in the Blank',
+    'short_answer': 'Short Answer'
+  };
+  document.getElementById('test-question-type').textContent = typeLabels[question.type] || 'Question';
+
+  // Set question text
+  document.getElementById('test-question-text').textContent = question.question;
+
+  // Show appropriate input
+  const optionsContainer = document.getElementById('test-options');
+  const inputContainer = document.getElementById('test-input-container');
+  const answerInput = document.getElementById('test-answer-input');
+
+  if (question.type === 'multiple_choice' && question.options) {
+    optionsContainer.classList.remove('hidden');
+    inputContainer.classList.add('hidden');
+
+    optionsContainer.innerHTML = question.options.map((option, index) => `
+      <button
+        onclick="selectTestOption(this, '${String.fromCharCode(65 + index)}')"
+        class="test-option w-full text-left p-4 border-2 border-gray-200 rounded-xl hover:border-orange-300 transition-all"
+        data-option="${String.fromCharCode(65 + index)}"
+      >
+        ${escapeHtml(option)}
+      </button>
+    `).join('');
+  } else {
+    optionsContainer.classList.add('hidden');
+    inputContainer.classList.remove('hidden');
+    answerInput.value = '';
+    answerInput.focus();
+  }
+
+  // Reset feedback and button
+  document.getElementById('test-feedback').classList.add('hidden');
+  document.getElementById('test-submit-btn').textContent = 'Submit Answer';
+  document.getElementById('test-submit-btn').onclick = submitTestAnswer;
+
+  // Show question card
+  document.getElementById('test-question-card').classList.remove('hidden');
+}
+
+let selectedTestOption = null;
+
+function selectTestOption(element, option) {
+  // Remove selection from all options
+  document.querySelectorAll('.test-option').forEach(btn => {
+    btn.classList.remove('border-orange-500', 'bg-orange-50');
+    btn.classList.add('border-gray-200');
+  });
+
+  // Select this option
+  element.classList.remove('border-gray-200');
+  element.classList.add('border-orange-500', 'bg-orange-50');
+  selectedTestOption = option;
+}
+
+function submitTestAnswer() {
+  const question = currentQuiz.questions[currentQuiz.currentIndex];
+  let userAnswer = '';
+
+  if (question.type === 'multiple_choice') {
+    if (!selectedTestOption) {
+      alert('Please select an answer');
+      return;
+    }
+    userAnswer = selectedTestOption;
+  } else {
+    userAnswer = document.getElementById('test-answer-input').value.trim();
+    if (!userAnswer) {
+      alert('Please enter an answer');
+      return;
+    }
+  }
+
+  // Check answer
+  let isCorrect = false;
+  const correctAnswer = question.correctAnswer;
+
+  if (question.type === 'multiple_choice') {
+    isCorrect = userAnswer.toUpperCase() === correctAnswer.toUpperCase();
+  } else {
+    // For fill-blank and short-answer, do case-insensitive comparison
+    isCorrect = userAnswer.toLowerCase().trim() === correctAnswer.toLowerCase().trim();
+  }
+
+  // Update score
+  if (isCorrect) {
+    currentQuiz.score++;
+  }
+
+  // Store answer
+  currentQuiz.answers.push({
+    question: question.question,
+    userAnswer: userAnswer,
+    correctAnswer: correctAnswer,
+    isCorrect: isCorrect
+  });
+
+  // Show feedback
+  const feedback = document.getElementById('test-feedback');
+  const feedbackIcon = document.getElementById('test-feedback-icon');
+  const feedbackText = document.getElementById('test-feedback-text');
+  const feedbackExplanation = document.getElementById('test-feedback-explanation');
+
+  feedback.classList.remove('hidden');
+
+  if (isCorrect) {
+    feedback.className = 'mb-6 p-4 rounded-xl bg-green-50 border border-green-200';
+    feedbackIcon.className = 'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-green-500';
+    feedbackIcon.innerHTML = '<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+    feedbackText.textContent = 'Correct!';
+    feedbackText.className = 'font-medium mb-1 text-green-800';
+  } else {
+    feedback.className = 'mb-6 p-4 rounded-xl bg-red-50 border border-red-200';
+    feedbackIcon.className = 'w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-red-500';
+    feedbackIcon.innerHTML = '<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+    feedbackText.textContent = `Incorrect. The answer is: ${correctAnswer}`;
+    feedbackText.className = 'font-medium mb-1 text-red-800';
+  }
+
+  feedbackExplanation.textContent = question.explanation || '';
+
+  // Disable options
+  document.querySelectorAll('.test-option').forEach(btn => {
+    btn.onclick = null;
+    btn.classList.add('cursor-not-allowed', 'opacity-70');
+  });
+  document.getElementById('test-answer-input').disabled = true;
+
+  // Update button
+  const submitBtn = document.getElementById('test-submit-btn');
+  if (currentQuiz.currentIndex < currentQuiz.questions.length - 1) {
+    submitBtn.textContent = 'Next Question';
+    submitBtn.onclick = nextTestQuestion;
+  } else {
+    submitBtn.textContent = 'See Results';
+    submitBtn.onclick = showTestResults;
+  }
+
+  // Update score display
+  document.getElementById('test-score').textContent = `Score: ${currentQuiz.score} / ${currentQuiz.currentIndex + 1}`;
+}
+
+function nextTestQuestion() {
+  currentQuiz.currentIndex++;
+  selectedTestOption = null;
+  document.getElementById('test-answer-input').disabled = false;
+  showTestQuestion();
+}
+
+function showTestResults() {
+  document.getElementById('test-question-card').classList.add('hidden');
+  document.getElementById('test-complete').classList.remove('hidden');
+
+  const score = currentQuiz.score;
+  const total = currentQuiz.questions.length;
+  const percentage = Math.round((score / total) * 100);
+
+  document.getElementById('test-final-score').textContent = `${score} / ${total}`;
+  document.getElementById('test-progress-bar').style.width = '100%';
+
+  let message = '';
+  if (percentage === 100) {
+    message = 'Perfect score! You really know this material!';
+  } else if (percentage >= 80) {
+    message = 'Great job! You have a solid understanding.';
+  } else if (percentage >= 60) {
+    message = 'Good effort! Review the topics you missed.';
+  } else {
+    message = 'Keep studying! Consider reviewing the conversation again.';
+  }
+  document.getElementById('test-message').textContent = message;
+
+  // Save quiz results to session
+  if (currentTutorSession) {
+    const quizResult = {
+      date: new Date().toISOString(),
+      score: score,
+      total: total,
+      answers: currentQuiz.answers
+    };
+
+    if (!currentTutorSession.quizResults) {
+      currentTutorSession.quizResults = [];
+    }
+    currentTutorSession.quizResults.push(quizResult);
+    saveCurrentSession();
+  }
+}
+
+function exitTestMe() {
+  showPage('tutor');
+}
+
+function retakeCurrentQuiz() {
+  if (currentQuiz.questions.length > 0) {
+    currentQuiz.currentIndex = 0;
+    currentQuiz.score = 0;
+    currentQuiz.answers = [];
+    selectedTestOption = null;
+
+    document.getElementById('test-complete').classList.add('hidden');
+    showTestQuestion();
+  }
+}
+
+function retakeTutorQuiz(sessionId) {
+  loadTutorSessions();
+  const session = tutorSessions.find(s => s.id === sessionId);
+  if (!session) return;
+
+  currentTutorSession = session;
+
+  // Use the last quiz's questions if available
+  if (session.quizResults && session.quizResults.length > 0) {
+    openTestMe();
+  }
 }
 
 // ==================== IMAGE UPLOAD & CAMERA ====================

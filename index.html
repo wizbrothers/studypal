@@ -810,26 +810,44 @@
   <div id="page-tutor" class="page">
     <nav class="bg-white shadow-sm border-b border-gray-200">
       <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <button onclick="showPage('dashboard')" class="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-          </svg>
-          Back to Dashboard
-        </button>
+        <div class="flex items-center justify-between">
+          <button onclick="showPage('dashboard')" class="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Dashboard
+          </button>
+          <div class="flex gap-2">
+            <button onclick="showTutorSessions()" class="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+              </svg>
+              <span class="hidden sm:inline">My Sessions</span>
+            </button>
+            <button onclick="startNewTutorSession()" class="flex items-center gap-2 px-3 py-2 bg-purple-100 text-purple-700 hover:bg-purple-200 rounded-lg transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+              </svg>
+              <span class="hidden sm:inline">New Chat</span>
+            </button>
+          </div>
+        </div>
       </div>
     </nav>
 
-    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="mb-8">
-        <h2 class="text-3xl font-bold text-gray-800 mb-2">🤖 AI Tutor</h2>
-        <p class="text-gray-600">Stuck on something? Ask me anything and I'll explain it simply!</p>
-      </div>
-
-      <div class="bg-white rounded-2xl p-6 shadow-lg">
-        <div class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-            <select id="tutor-subject" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none">
+    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col" style="height: calc(100vh - 80px);">
+      <!-- Session Header -->
+      <div class="mb-4 flex items-center justify-between">
+        <div>
+          <input
+            type="text"
+            id="tutor-session-title"
+            placeholder="Untitled Session"
+            class="text-xl font-bold text-gray-800 bg-transparent border-none focus:outline-none focus:ring-0 w-full"
+            onchange="updateSessionTitle(this.value)"
+          >
+          <div class="flex items-center gap-3 mt-1">
+            <select id="tutor-subject" onchange="updateSessionSubject(this.value)" class="text-sm px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none">
               <option value="general">General</option>
               <option value="English">English</option>
               <option value="Science">Science</option>
@@ -837,23 +855,214 @@
               <option value="History">History</option>
             </select>
           </div>
+        </div>
+        <button
+          onclick="openTestMe()"
+          id="test-me-btn"
+          class="hidden items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-yellow-500 text-white rounded-lg hover:from-orange-600 hover:to-yellow-600 transition-all font-medium"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+          </svg>
+          <span>Test Me</span>
+        </button>
+      </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Your Question</label>
-            <textarea id="tutor-input" rows="4" placeholder="Example: What is photosynthesis and why is it important?" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"></textarea>
-          </div>
-
-          <div id="tutor-error" class="hidden bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm"></div>
-
-          <button onclick="askTutor()" id="tutor-btn" class="w-full bg-gradient-to-r from-purple-500 to-purple-600 text-white py-4 rounded-lg font-medium hover:from-purple-600 hover:to-purple-700 transition-all flex items-center justify-center gap-2">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      <!-- Chat Messages -->
+      <div id="tutor-messages" class="flex-1 overflow-y-auto bg-white rounded-2xl shadow-lg p-4 mb-4 space-y-4">
+        <!-- Welcome message -->
+        <div class="flex gap-3">
+          <div class="w-8 h-8 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
             </svg>
-            <span>Explain This</span>
+          </div>
+          <div class="bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-100 rounded-2xl rounded-tl-none p-4 max-w-[85%]">
+            <p class="text-gray-800">Hi! I'm your AI tutor. Ask me anything about your studies and I'll help explain it in a way that's easy to understand. What would you like to learn about today?</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error message -->
+      <div id="tutor-error" class="hidden mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg text-sm"></div>
+
+      <!-- Input Area -->
+      <div class="bg-white rounded-2xl shadow-lg p-4">
+        <div class="flex gap-3">
+          <textarea
+            id="tutor-input"
+            rows="2"
+            placeholder="Type your question here..."
+            onkeydown="handleTutorKeydown(event)"
+            class="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none resize-none"
+          ></textarea>
+          <button
+            onclick="sendTutorMessage()"
+            id="tutor-send-btn"
+            class="px-4 py-3 bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition-all flex items-center justify-center"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================== TUTOR SESSIONS LIST PAGE ==================== -->
+  <div id="page-tutor-sessions" class="page">
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+      <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div class="flex items-center justify-between">
+          <button onclick="showPage('tutor')" class="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Back to Tutor
+          </button>
+          <button onclick="startNewTutorSession(); showPage('tutor');" class="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            New Session
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="mb-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">My Tutor Sessions</h2>
+        <p class="text-gray-600">Review and continue your past conversations</p>
+      </div>
+
+      <div id="tutor-sessions-container">
+        <!-- Empty State -->
+        <div id="tutor-sessions-empty" class="bg-white rounded-2xl p-12 text-center shadow-sm">
+          <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+          </svg>
+          <h3 class="text-xl font-semibold text-gray-700 mb-2">No sessions yet</h3>
+          <p class="text-gray-500 mb-6">Start a conversation with the AI tutor!</p>
+          <button
+            onclick="startNewTutorSession(); showPage('tutor');"
+            class="bg-purple-500 text-white px-6 py-3 rounded-lg hover:bg-purple-600 transition-colors font-medium"
+          >
+            Start New Session
           </button>
         </div>
 
-        <div id="tutor-output" class="mt-6"></div>
+        <!-- Sessions Grid -->
+        <div id="tutor-sessions-grid" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Cards will be inserted here by JavaScript -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================== TEST ME (QUIZ) PAGE ==================== -->
+  <div id="page-test-me" class="page">
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+      <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <button onclick="exitTestMe()" class="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          Back to Chat
+        </button>
+      </div>
+    </nav>
+
+    <main class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Quiz Header -->
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Test Your Knowledge</h2>
+        <div class="flex items-center gap-4 text-sm text-gray-600">
+          <span id="test-progress">Question 1 of 5</span>
+          <span id="test-score">Score: 0 / 0</span>
+        </div>
+        <!-- Progress Bar -->
+        <div class="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div id="test-progress-bar" class="h-full bg-gradient-to-r from-orange-500 to-yellow-500 transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="test-loading" class="bg-white rounded-2xl shadow-xl p-12 text-center">
+        <div class="animate-spin w-12 h-12 border-4 border-orange-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <p class="text-gray-600">Generating quiz questions based on your conversation...</p>
+      </div>
+
+      <!-- Question Card -->
+      <div id="test-question-card" class="hidden bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="p-6 sm:p-8">
+          <div id="test-question-type" class="inline-block px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium mb-4">Multiple Choice</div>
+          <h3 id="test-question-text" class="text-xl sm:text-2xl font-semibold text-gray-800 mb-6">Question goes here</h3>
+
+          <!-- Multiple Choice Options -->
+          <div id="test-options" class="space-y-3 mb-6">
+            <!-- Options will be inserted here -->
+          </div>
+
+          <!-- Text Input for fill-blank and short-answer -->
+          <div id="test-input-container" class="hidden mb-6">
+            <input
+              type="text"
+              id="test-answer-input"
+              placeholder="Type your answer..."
+              class="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:border-orange-500 focus:ring-0 outline-none text-lg"
+              onkeydown="if(event.key === 'Enter') submitTestAnswer()"
+            >
+          </div>
+
+          <!-- Feedback -->
+          <div id="test-feedback" class="hidden mb-6 p-4 rounded-xl">
+            <div class="flex items-start gap-3">
+              <div id="test-feedback-icon" class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"></div>
+              <div>
+                <p id="test-feedback-text" class="font-medium mb-1"></p>
+                <p id="test-feedback-explanation" class="text-sm text-gray-600"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit/Next Button -->
+          <button
+            id="test-submit-btn"
+            onclick="submitTestAnswer()"
+            class="w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-4 rounded-xl font-medium hover:from-orange-600 hover:to-yellow-600 transition-all"
+          >
+            Submit Answer
+          </button>
+        </div>
+      </div>
+
+      <!-- Quiz Complete -->
+      <div id="test-complete" class="hidden bg-white rounded-2xl shadow-xl p-8 sm:p-12 text-center">
+        <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-400 to-yellow-500 rounded-full mb-6">
+          <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <h3 class="text-3xl font-bold text-gray-800 mb-4">Quiz Complete!</h3>
+        <div id="test-final-score" class="text-6xl font-bold text-gray-800 mb-2">0 / 5</div>
+        <p id="test-message" class="text-gray-600 mb-8"></p>
+
+        <div class="flex flex-col sm:flex-row gap-4">
+          <button
+            onclick="exitTestMe()"
+            class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+          >
+            Back to Chat
+          </button>
+          <button
+            onclick="retakeCurrentQuiz()"
+            class="flex-1 bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-3 rounded-lg hover:from-orange-600 hover:to-yellow-600 transition-all font-medium"
+          >
+            Retake Quiz
+          </button>
+        </div>
       </div>
     </main>
   </div>
