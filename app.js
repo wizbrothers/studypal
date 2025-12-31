@@ -778,6 +778,109 @@ async function askTutor() {
   `;
 }
 
+// ==================== IMAGE UPLOAD & CAMERA ====================
+function openCamera() {
+  // On mobile, this will open the camera directly
+  document.getElementById('camera-input').click();
+}
+
+async function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    showCreateError('Please select an image file');
+    return;
+  }
+
+  // Validate file size (max 10MB)
+  if (file.size > 10 * 1024 * 1024) {
+    showCreateError('Image is too large. Please use an image under 10MB.');
+    return;
+  }
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const imageData = e.target.result;
+
+    // Show preview
+    const previewContainer = document.getElementById('image-preview-container');
+    const previewImg = document.getElementById('image-preview');
+    const statusText = document.getElementById('extraction-status');
+
+    previewImg.src = imageData;
+    previewContainer.classList.remove('hidden');
+    statusText.textContent = 'Extracting text from image...';
+
+    // Extract text from image
+    try {
+      const response = await fetch('/api/extract-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: imageData })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to extract text');
+      }
+
+      const data = await response.json();
+
+      if (data.text) {
+        // Append extracted text to notes textarea
+        const notesTextarea = document.getElementById('set-notes');
+        const existingText = notesTextarea.value.trim();
+
+        if (existingText) {
+          notesTextarea.value = existingText + '\n\n--- Extracted from image ---\n\n' + data.text;
+        } else {
+          notesTextarea.value = data.text;
+        }
+
+        statusText.textContent = 'Text extracted successfully!';
+        statusText.classList.remove('text-gray-600');
+        statusText.classList.add('text-green-600');
+      } else {
+        statusText.textContent = 'No text found in image';
+        statusText.classList.remove('text-gray-600');
+        statusText.classList.add('text-yellow-600');
+      }
+    } catch (error) {
+      console.error('Error extracting text:', error);
+      statusText.textContent = 'Failed to extract text. Please try again or type manually.';
+      statusText.classList.remove('text-gray-600');
+      statusText.classList.add('text-red-600');
+    }
+  };
+
+  reader.readAsDataURL(file);
+
+  // Reset the input so the same file can be selected again
+  event.target.value = '';
+}
+
+function clearImagePreview() {
+  const previewContainer = document.getElementById('image-preview-container');
+  const previewImg = document.getElementById('image-preview');
+  const statusText = document.getElementById('extraction-status');
+
+  previewContainer.classList.add('hidden');
+  previewImg.src = '';
+  statusText.textContent = '';
+  statusText.className = 'text-sm text-gray-600 mt-2';
+}
+
+function showCreateError(message) {
+  const errorDiv = document.getElementById('create-error');
+  errorDiv.textContent = message;
+  errorDiv.classList.remove('hidden');
+  setTimeout(() => {
+    errorDiv.classList.add('hidden');
+  }, 5000);
+}
+
 // ==================== UTILITIES ====================
 function escapeHtml(text) {
   const div = document.createElement('div');
