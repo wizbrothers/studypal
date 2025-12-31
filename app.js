@@ -309,27 +309,28 @@ document.getElementById('create-form').addEventListener('submit', function(e) {
 async function generateFlashcards() {
   const title = document.getElementById('set-title').value.trim();
   const subject = document.getElementById('set-subject').value;
+  const cardCount = document.getElementById('set-card-count').value;
   const notes = document.getElementById('set-notes').value.trim();
   const errorDiv = document.getElementById('create-error');
   const btn = document.getElementById('generate-btn');
-  
+
   if (!title || !notes) {
     errorDiv.textContent = 'Please fill in all fields';
     errorDiv.classList.remove('hidden');
     return;
   }
-  
+
   btn.disabled = true;
   btn.innerHTML = '<span>🤖 AI is generating flashcards...</span>';
   errorDiv.classList.add('hidden');
-  
+
   currentStudySet = { title, subject, flashcards: [], cardProgress: {} };
-  
+
   try {
     const response = await fetch('/api/generate-flashcards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notes, subject })
+      body: JSON.stringify({ notes, subject, cardCount })
     });
     
     if (!response.ok) {

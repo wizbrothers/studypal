@@ -4,7 +4,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { notes, subject } = req.body;
+  const { notes, subject, cardCount } = req.body;
 
   if (!notes) {
     return res.status(400).json({ error: 'Notes are required' });
@@ -16,10 +16,18 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'API key not configured' });
   }
 
+  // Determine card range based on user selection
+  let cardRange = '5-15';
+  if (cardCount === '20-30') {
+    cardRange = '20-30';
+  } else if (cardCount === '30-50') {
+    cardRange = '30-50';
+  }
+
   try {
     const prompt = `You are a study assistant helping students create flashcards.
 
-Given the following study notes about ${subject || 'a topic'}, create 5-10 flashcards.
+Given the following study notes about ${subject || 'a topic'}, create ${cardRange} flashcards.
 
 Each flashcard should have:
 - A clear question or term on the front
