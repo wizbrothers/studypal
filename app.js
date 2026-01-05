@@ -1385,6 +1385,95 @@ function retakeTutorQuiz(sessionId) {
   }
 }
 
+// ==================== URL EXTRACTION ====================
+async function extractFromUrl(target) {
+  const inputId = target === 'flashcard' ? 'flashcard-url-input' : 'summarizer-url-input';
+  const btnId = target === 'flashcard' ? 'flashcard-url-btn' : 'summarizer-url-btn';
+  const statusId = target === 'flashcard' ? 'flashcard-url-status' : 'summarizer-url-status';
+  const textareaId = target === 'flashcard' ? 'set-notes' : 'summarizer-input';
+
+  const urlInput = document.getElementById(inputId);
+  const btn = document.getElementById(btnId);
+  const status = document.getElementById(statusId);
+  const textarea = document.getElementById(textareaId);
+
+  const url = urlInput.value.trim();
+
+  if (!url) {
+    status.textContent = 'Please enter a URL';
+    status.classList.remove('hidden', 'text-green-600', 'text-gray-500');
+    status.classList.add('text-red-600');
+    return;
+  }
+
+  // Basic URL validation
+  try {
+    new URL(url);
+  } catch (e) {
+    status.textContent = 'Please enter a valid URL (starting with http:// or https://)';
+    status.classList.remove('hidden', 'text-green-600', 'text-gray-500');
+    status.classList.add('text-red-600');
+    return;
+  }
+
+  // Show loading state
+  btn.disabled = true;
+  const originalBtnHtml = btn.innerHTML;
+  btn.innerHTML = `
+    <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+    </svg>
+    <span>Extracting...</span>
+  `;
+  status.textContent = 'Fetching content from URL...';
+  status.classList.remove('hidden', 'text-red-600', 'text-green-600');
+  status.classList.add('text-gray-500');
+
+  try {
+    const response = await fetch('/api/extract-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to extract content');
+    }
+
+    const data = await response.json();
+
+    if (data.text) {
+      // Append or replace text in textarea
+      const existingText = textarea.value.trim();
+
+      if (existingText) {
+        textarea.value = existingText + '\n\n--- Extracted from URL ---\n\n' + data.text;
+      } else {
+        textarea.value = data.text;
+      }
+
+      status.textContent = 'Content extracted successfully!';
+      status.classList.remove('text-gray-500', 'text-red-600');
+      status.classList.add('text-green-600');
+
+      // Clear URL input
+      urlInput.value = '';
+    } else {
+      throw new Error('No content could be extracted from this URL');
+    }
+  } catch (error) {
+    console.error('URL extraction error:', error);
+    status.textContent = error.message || 'Failed to extract content. The website might be blocking access.';
+    status.classList.remove('text-gray-500', 'text-green-600');
+    status.classList.add('text-red-600');
+  }
+
+  // Restore button
+  btn.disabled = false;
+  btn.innerHTML = originalBtnHtml;
+}
+
 // ==================== IMAGE UPLOAD & CAMERA ====================
 function openCamera() {
   // On mobile, this will open the camera directly
